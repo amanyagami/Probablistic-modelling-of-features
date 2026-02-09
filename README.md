@@ -1,104 +1,41 @@
-# Feature Visualization and Analysis
+# Probabilistic Modelling of Features
 
-This repository contains exploratory notebooks for **visualizing and analyzing deep feature embeddings** extracted from trained models, with a particular focus on **class-wise structure** and **adversarial robustness (e.g., PGD attacks)**.
-
-The notebooks are intended for research and analysis workflows where understanding the geometry of learned representations is important.
-
----
-
-## Contents
-
-- **`visualize only two classes.ipynb`**  
-  Focused analysis of feature embeddings for **two selected classes**. This notebook is useful for studying separation, overlap, and robustness properties in a controlled, low-complexity setting.
-
-- **`visualize_features_deeply.ipynb`**  
-  A more comprehensive feature analysis notebook that scales the same ideas to **multiple classes and attack settings**, enabling deeper inspection of representation space.
+Exploratory notebooks for probabilistic and geometric analysis of deep feature representations,
+with emphasis on class-wise structure and adversarial robustness.
 
 ---
 
-## What the Notebooks Do
+## Visual gallery
 
-Both notebooks follow a similar analytical pipeline:
+<div align="center">
 
-1. **Load model and dataset**  
-   Load a pretrained model and the corresponding clean and adversarial datasets.
+| CIFAR-100 t-SNE | Different Classes |
+|:---------------:|:-----------------:|
+| ![CIFAR-100 t-SNE](images/Cifar100_TSNE.png){width=350} | ![Different Classes](images/Different_Classes.png){width=350} |
 
-2. **Compute statistics**  
-   - Mean and precision (or covariance-related) statistics of feature embeddings
-   - Load and reuse precomputed feature statistics when available
+<br/>
 
-3. **Feature / embedding visualization**  
-   - Plot feature representations for individual classes
-   - Overlay features from different attack types (e.g., PGD) for comparison
-   - Visualize multiple classes in a shared embedding space
+![Final Layer t-SNE](images/Final_LAyer_TSNE.png){width=700}
 
-4. **Adversarial analysis**  
-   - Evaluate embeddings on adversarial datasets (e.g., PGD attacks)
-   - Compare clean vs adversarial feature distributions
+**Figure:** Final-layer embedding geometry of the trained model.
 
-5. **Geometric analysis**  
-   - Compute distances of feature points from a reference (e.g., origin)
-   - Estimate class centroids in feature space
-   - Analyze distances to centroids and their implications
-
-6. **CSV-based analysis**  
-   - Post-process saved feature statistics
-   - Perform quantitative analysis of embedding geometry
+</div>
 
 ---
 
-## Typical Use Cases
+## Notebooks
 
-- Understanding **class separability** in learned representations
-- Studying the **effect of adversarial attacks** on feature space geometry
-- Comparing **clean vs adversarial embeddings**
-- Investigating **centroid-based distances** as robustness or detection signals
+- `notebooks/visualize only two classes.ipynb` — focused two-class embedding analysis.  
+- `notebooks/visualize_features_deeply.ipynb` — multi-class and adversarial analysis.  
+- `notebooks/visualizations.ipynb` — additional plots.  
+- `notebooks/GMM_Resnet.ipynb` — GMM / model experiments.
 
----
+## How to run
 
-## Requirements
-
-The notebooks assume a standard deep learning and scientific Python stack, typically including:
-
-- Python 3.x
-- PyTorch
-- NumPy
-- Pandas
-- Matplotlib / Seaborn
-- Jupyter Notebook
-
-(Exact versions depend on the training and evaluation setup used.)
-
----
-
-## How to Use
-
-1. Clone the repository:
-   ```bash
-   git clone <repo-url>
-   cd <repo-name>
-   ```
-
-2. Open the notebooks:
-   ```bash
-   jupyter notebook
-   ```
-
-3. Update model paths, dataset paths, and attack configurations as needed.
-
-4. Run cells sequentially to reproduce visualizations and analyses.
-
----
-
-## Notes
-
-- These notebooks are **analysis-oriented** and may require minor refactoring for use as a library or pipeline.
-- Some results depend on precomputed statistics or CSV files; ensure paths are correctly set.
-- The code is intended for experimentation and research rather than production use.
-
----
-
-## License
-
-Specify your license here (e.g., MIT, Apache 2.0).
-
+Interactive (recommended):
+```bash
+conda create -n featviz python=3.9
+conda activate featviz
+pip install -r requirements.txt
+jupyter lab
+# then open a notebook and run cells

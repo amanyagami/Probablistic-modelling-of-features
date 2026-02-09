@@ -1,0 +1,31 @@
+# Core
+python>=3.8
+
+# Deep learning
+torch>=1.8
+torchvision>=0.9
+
+# Scientific computing
+numpy>=1.19
+scipy>=1.5
+pandas>=1.1
+
+# Visualization
+matplotlib>=3.3
+seaborn>=0.11
+
+# Dimensionality reduction & clustering
+scikit-learn>=0.24
+umap-learn>=0.5
+
+# Probabilistic modeling
+joblib>=1.0
+
+# Jupyter environment
+jupyter
+notebook
+ipywidgets
+
+# Optional: adversarial attacks (used if enabled in notebooks)
+torchattacks>=3.2
+ 
