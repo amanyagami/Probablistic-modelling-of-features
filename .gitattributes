@@ -1,0 +1,4 @@
+# Notebook outputs: install the filter once per clone with `uv run nbstripout --install`.
+# Pre-commit (see .pre-commit-config.yaml) also strips outputs of notebooks you touch.
+*.ipynb filter=nbstripout
+*.ipynb diff=ipynb

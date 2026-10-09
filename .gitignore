@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+dist/
+build/
+*.egg-info/
+# Large artefacts produced by the notebooks
+data/
+pre_trained/
+adv_samples/
+results/
+plots/
+*.pkl
+*.pt
+*.pth
+quickstart_tsne.png
