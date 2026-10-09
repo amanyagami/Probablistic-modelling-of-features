@@ -60,10 +60,10 @@ Bugs / leakage / pitfalls found by reading the code (not by running it):
 2. GMM notebook: the threshold is the 5th percentile of the *same* ID test scores that are then used to compute
    accuracy/TPR (no separate calibration split; TPR is 95% by construction). A later duplicated cell references
    undefined `umap_model` / `gmm_final['ID_Train']`.
-3. Features are of the ResNet34 model, but adversarial samples are named `densenet3_cifar10_*.pt` (crafted against
-   another model, so they are transfer attacks) and the SDC model/data pairing is inconsistent across notebooks.
-4. Adversarial samples keep the original (true) labels and are loaded as raw `float` arrays, so any normalisation
-   mismatch with the clean pipeline would itself look like "OOD".
+3. Features are of the ResNet34 model, but adversarial samples are named `densenet3_cifar10_*.pt` (if they were crafted against
+   that DenseNet they are transfer attacks; the notebooks do not say) and the SDC model/data pairing is inconsistent across notebooks.
+4. Adversarial samples keep the original (true) labels and are loaded as raw `float` arrays, so a normalisation
+   mismatch with the clean pipeline (not verifiable here) would itself look like "OOD".
 5. Mahalanobis stats: the rolling covariance update inverts the stored precision each batch (numerically fragile,
    uses an ad-hoc 1e-6 ridge), and the test-time loop uses `class_features = features` for every class and
    then `break`s after one batch.
