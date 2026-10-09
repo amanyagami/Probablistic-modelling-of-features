@@ -1,33 +1,99 @@
-# Probabilistic Modelling of Features
+<div align="center">
 
-## Quick start (`featprob`)
+# featprob
 
-`featprob` is a small, tested package for class-conditional GMM modelling of deep features
-and feature-space OOD scoring. Reproducible environment via [uv](https://docs.astral.sh/uv/):
+**Probabilistic modelling of deep features: class-conditional GMMs for calibrated OOD and anomaly scoring.**
+
+[![CI](https://github.com/amanyagami/Probablistic-modelling-of-features/actions/workflows/ci.yml/badge.svg)](https://github.com/amanyagami/Probablistic-modelling-of-features/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
+[![uv](https://img.shields.io/badge/packaging-uv-6e56cf)](https://docs.astral.sh/uv/)
+
+<br/>
+
+<table>
+  <tr>
+    <td align="center"><img src="images/Cifar100_TSNE.png" alt="CIFAR-100 t-SNE" width="340"/><br/><sub>t-SNE on CIFAR-100</sub></td>
+    <td align="center"><img src="images/Different_Classes.png" alt="Different classes" width="340"/><br/><sub>Different classes</sub></td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="images/Final_LAyer_TSNE.png" alt="Final-layer t-SNE" width="700"/><br/><sub>Final-layer embedding of the trained model (t-SNE)</sub></td>
+  </tr>
+</table>
+
+</div>
+
+## Quick start
+
+Environment is managed with [uv](https://docs.astral.sh/uv/) (`uv.lock` is committed).
 
 ```bash
-uv sync                      # core + dev tools (numpy, scipy, scikit-learn, matplotlib, pytest, ruff)
-uv sync --extra torch        # + torch/torchvision for feature extraction
-uv sync --extra viz          # + umap-learn (optional: --extra opentsne)
-uv run pytest                # run the tests
-uv run python notebooks/00_quickstart.py   # end-to-end demo on synthetic data
+uv sync                  # core + dev tools
+uv sync --extra torch    # + torch/torchvision (feature extraction)
+uv sync --extra viz      # + umap-learn   (--extra opentsne for openTSNE)
+uv run pytest
+uv run python notebooks/00_quickstart.py   # synthetic end-to-end demo
 ```
+
+## Usage
 
 ```python
-import numpy as np
 from featprob import ClassConditionalGMM
 
-# X_train: (n, d) features, y_train: labels; X_cal: held-out ID features (NOT the training set)
-model = ClassConditionalGMM(max_components=4, random_state=0).fit(X_train, y_train)
+# X_train: (n, d) features, y_train: labels, X_cal: held-out ID features (not the training set)
+model = ClassConditionalGMM(max_components=4, random_state=0, n_jobs=-1).fit(X_train, y_train)
 model.calibrate(X_cal)
-scores = model.anomaly_score(X_test, method="mahalanobis")   # large => anomalous
-metrics = model.evaluate(X_id_test, X_ood, method="loglik")  # auroc, aupr_in, aupr_out, fpr_at_95tpr
+scores = model.anomaly_score(X_test, method="mahalanobis")    # large => anomalous
+metrics = model.evaluate(X_id_test, X_ood, method="loglik")   # auroc, aupr_in, aupr_out, fpr_at_95tpr
 ```
 
-Features from a PyTorch model: `featprob.features.FeatureExtractor(model).extract(loader)`
-(hooks the input of the final `Linear` layer; torch is imported lazily). Seeded t-SNE/UMAP
-helpers are in `featprob.viz`. Before committing notebooks run `uv run nbstripout --install`
-(or use pre-commit) so outputs are not committed.
+Features from a PyTorch classifier: `FeatureExtractor(model).extract(loader)` hooks the input of the
+final `Linear` layer (torch is imported lazily).
+
+## API
+
+| Object | Purpose |
+|:--|:--|
+| `ClassConditionalGMM.fit(X, y)` | One GMM per class; components chosen by BIC; `reg_covar` ridge; tiny classes skipped with a warning |
+| `.class_log_likelihood(X)` | `log p(x given c)`, shape `(n, n_classes)` |
+| `.mahalanobis_to_nearest(X)` | Squared Mahalanobis distance to the nearest component of each class |
+| `.raw_anomaly_score(X, method)` | `loglik`: `-max_c log p(x given c)`; `mahalanobis`: `min_c` nearest-component distance |
+| `.calibrate(X_cal)` / `.anomaly_score(X)` | Robust z-score against held-out ID scores (monotone, ranking unchanged) |
+| `.p_value(X)` / `.threshold_at_tpr(0.95)` | Empirical p-value; raw threshold keeping 95% of calibration ID data |
+| `.predict(X)` | Argmax of `log p(x given c) + log prior` |
+| `.evaluate(X_id, X_ood)` / `evaluate_ood` | AUROC, AUPR-in, AUPR-out, FPR at 95% ID TPR |
+| `featprob.features.FeatureExtractor` | Penultimate-layer features from a torch model |
+| `featprob.viz` | Seeded `project_pca`, `project_tsne`, `project_umap`, `scatter_embedding` |
+
+## Method
+
+```mermaid
+flowchart LR
+    A[Penultimate features] --> B[Class-conditional GMM<br/>BIC components, ridge covariance]
+    B --> C[Raw score<br/>log-likelihood or Mahalanobis]
+    D[Held-out ID data] --> E[Calibration<br/>median / MAD]
+    C --> E
+    E --> F[Threshold at 95% ID TPR]
+    F --> G{ID or OOD / anomaly}
+```
+
+Calibration data must be disjoint from the training data; otherwise in-distribution scores are optimistic.
+
+## Performance
+
+Measured once in a 4-core sandbox ( synthetic Gaussian classes, 10 classes,
+512 dimensions, 50,000 training samples, `max_components=3`, full covariance); your numbers will vary.
+
+| Step | Time | Notes |
+|:--|--:|:--|
+| `fit`, `n_jobs=None` | 153 s | classes fitted sequentially |
+| `fit`, `n_jobs=4` | 14.3 s | identical scores (tested); about 10x faster here |
+| score 10,000 samples (log-likelihood) | 0.83 s | `n_jobs=4` run; 1.6 s in the sequential run |
+| score 10,000 samples (Mahalanobis) | 0.69 s | `n_jobs=4` run; 1.6 s in the sequential run |
+| peak RSS of the main process | about 0.7 GB | worker processes are not included |
+
+The speedup was measured in a single run per setting and part of it may come from reduced BLAS
+thread contention rather than class parallelism alone.
 
 ## What the notebooks do / known issues
 
@@ -80,44 +146,26 @@ Bugs / leakage / pitfalls found by reading the code (not by running it):
 8. Metric hygiene: "accuracy" mixes ID and OOD at one threshold; no seeds are fixed for sampling in plots;
    results CSV `gmm_scores11thdec.csv` (8 MB) is committed and notebooks carry large outputs.
 
----
+## Development
 
-## Original README
-
-Exploratory notebooks for probabilistic and geometric analysis of deep feature representations,
-with emphasis on class-wise structure and adversarial robustness.
-
----
-
-## Visual gallery
-
-<div align="center">
-
-| CIFAR-100 t-SNE | Different Classes |
-|:---------------:|:-----------------:|
-| <img src="images/Cifar100_TSNE.png" alt="CIFAR-100 t-SNE" width="350"/> | <img src="images/Different_Classes.png" alt="Different Classes" width="350"/> |
-
-<br/>
-
-<img src="images/Final_LAyer_TSNE.png" alt="Final Layer t-SNE" width="700"/>
-
-**Figure:** Final-layer embedding geometry of the trained model.
-
-</div>
-
----
-
-## Notebooks
-
-- `notebooks/visualize only two classes.ipynb` — focused two-class embedding analysis.  
-- `notebooks/visualize_features_deeply.ipynb` — multi-class and adversarial analysis.  
-- `notebooks/visualizations.ipynb` — additional plots.  
-- `notebooks/GMM_Resnet.ipynb` — GMM / model experiments.
-
-## How to run
-
-Interactive (recommended):
 ```bash
-uv sync   # legacy list kept in requirements.legacy.txt
-jupyter lab
-# then open a notebook and run cells
+uv run --frozen ruff format src/ tests/ notebooks/00_quickstart.py
+uv run --frozen ruff check  src/ tests/ notebooks/00_quickstart.py
+uv run --frozen pytest
+uv run nbstripout --install     # once per clone: keep notebook outputs out of commits
+```
+
+CI (`.github/workflows/ci.yml`) runs ruff and pytest on Python 3.10 and 3.12. The existing notebooks
+are unchanged and still carry their original outputs.
+
+## Limitations
+
+- Gaussian mixtures in hundreds of dimensions need many samples per class; `reg_covar` keeps
+  covariances invertible but does not fix a small-sample estimate.
+- Tied covariance is not supported; only `full`, `diag` and `spherical`.
+- Tests use synthetic, well-separated data. No result on real CIFAR features has been reproduced here.
+- The torch extractor is tested on a small `Sequential` model only.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
