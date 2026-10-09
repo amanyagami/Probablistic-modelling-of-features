@@ -12,6 +12,7 @@ import warnings
 from typing import Literal
 
 import numpy as np
+from joblib import Parallel, delayed
 from numpy.typing import ArrayLike, NDArray
 from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve
 from sklearn.mixture import GaussianMixture
@@ -87,6 +88,7 @@ class ClassConditionalGMM:
         min_samples_per_class: int = 5,
         min_samples_per_component: int = 5,
         random_state: int = 0,
+        n_jobs: int | None = None,
     ) -> None:
         """Initialise the model.
 
@@ -99,6 +101,8 @@ class ClassConditionalGMM:
             min_samples_per_component: Upper bound on components is
                 ``n_class_samples // min_samples_per_component``.
             random_state: Seed controlling all GMM initialisations.
+            n_jobs: Processes used to fit classes in parallel (joblib semantics; results
+                are identical to ``None`` because each class uses the same seed).
 
         Raises:
             ValueError: If an argument is out of range.
@@ -117,6 +121,7 @@ class ClassConditionalGMM:
         self.min_samples_per_class = min_samples_per_class
         self.min_samples_per_component = max(1, min_samples_per_component)
         self.random_state = random_state
+        self.n_jobs = n_jobs
 
         self.classes_: NDArray[np.generic] = np.array([])
         self.models_: dict[int, GaussianMixture] = {}
@@ -144,7 +149,8 @@ class ClassConditionalGMM:
         if labels.shape != (x.shape[0],):
             raise ValueError("y must have shape (n_samples,) matching X")
         self.models_, self.n_components_, self.skipped_classes_ = {}, {}, []
-        counts: list[int] = []
+        fit_classes: list[int] = []
+        blocks: list[FloatArray] = []
         for cls in np.unique(labels):
             xc = x[labels == cls]
             if xc.shape[0] < self.min_samples_per_class:
@@ -155,9 +161,13 @@ class ClassConditionalGMM:
                 )
                 self.skipped_classes_.append(int(cls))
                 continue
-            model = self._fit_class(xc)
-            self.models_[int(cls)] = model
-            self.n_components_[int(cls)] = model.n_components
+            fit_classes.append(int(cls))
+            blocks.append(xc)
+        fitted_models = Parallel(n_jobs=self.n_jobs)(delayed(self._fit_class)(b) for b in blocks)
+        counts: list[int] = []
+        for cls, model, xc in zip(fit_classes, fitted_models, blocks, strict=True):
+            self.models_[cls] = model
+            self.n_components_[cls] = model.n_components
             counts.append(xc.shape[0])
         if not self.models_:
             raise ValueError("no class has enough samples to fit a mixture")

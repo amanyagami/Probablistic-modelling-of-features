@@ -140,3 +140,31 @@ def test_evaluate_ood_known_values() -> None:
     assert tied["auroc"] == 0.5
     with pytest.raises(ValueError):
         evaluate_ood([], [1.0])
+
+
+def test_n_jobs_gives_identical_results(data: dict[str, np.ndarray]) -> None:
+    a = fitted(data).raw_anomaly_score(data["x_ood"])
+    b = fitted(data, n_jobs=2).raw_anomaly_score(data["x_ood"])
+    np.testing.assert_allclose(a, b, rtol=1e-9)
+
+
+def test_score_monotone_in_distance_from_class_mean(data: dict[str, np.ndarray]) -> None:
+    model = fitted(data, max_components=1)
+    mean0 = model.models_[0].means_[0]
+    direction = np.random.default_rng(0).normal(size=mean0.shape)
+    direction /= np.linalg.norm(direction)
+    steps = np.linspace(0.0, 30.0, 40)
+    pts = mean0 + steps[:, None] * direction
+    # Single Gaussian: both scores are convex quadratics along a ray, increasing past the mode.
+    for method in ("loglik", "mahalanobis"):
+        s = model.raw_anomaly_score(pts, method)  # type: ignore[arg-type]
+        assert np.all(np.diff(s[5:]) > 0)
+
+
+def test_scaling_outlier_increases_mahalanobis(data: dict[str, np.ndarray]) -> None:
+    model = fitted(data, max_components=1)
+    mean0 = model.models_[0].means_[0]
+    d = np.random.default_rng(1).normal(size=(20, mean0.shape[0]))
+    near = model.mahalanobis_to_nearest(mean0 + d)[:, 0]
+    far = model.mahalanobis_to_nearest(mean0 + 3 * d)[:, 0]
+    assert np.all(far > near)
