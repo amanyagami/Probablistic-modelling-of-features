@@ -112,7 +112,7 @@ CIFAR-100, precomputed `extracted_features_*.pkl`), hardcode `cuda:0`/`cuda:1`, 
   per layer (DenseNet3/ResNet34), t-SNE (sklearn or cuML) of ID vs. adversarial vs. OOD sets with
   hand-made label offsets (+10/+100/...), per-class running mean/precision (Mahalanobis-style
   distance, then the same 5th-percentile/AUROC analysis on `results/*.csv`).
-- `try to detect SDC.ipynb` (repo root): "SDC" = silent data corruption, i.e. a hardware/bit-flip fault
+- `notebooks/try_to_detect_SDC.ipynb`: "SDC" = silent data corruption, i.e. a hardware/bit-flip fault
   injected into a random layer (via the missing `FS` module) that silently flips the model prediction.
   It picks 32 random neurons per module, records per-class min/max/mean activation on 2000 train
   images, scores test images by distance of the neuron activation to class means, and checks whether
